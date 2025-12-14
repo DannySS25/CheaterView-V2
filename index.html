@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FiveM Cheater Logger</title>
+<style>
+    body {
+        background-color: #0d0b12;
+        color: white;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background-color: #1a1424;
+        border-bottom: 2px solid #5a2ea6;
+        gap: 10px;
+    }
+
+    #searchBar {
+        width: 45%;
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        background-color: #2a2138;
+        color: white;
+    }
+
+    button {
+        background-color: #5a2ea6;
+        border: none;
+        padding: 10px 16px;
+        color: white;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    button:hover {
+        background-color: #7441d1;
+    }
+
+    .cheater-card {
+        background-color: #1a1424;
+        border-left: 4px solid #5a2ea6;
+        padding: 15px;
+        margin: 10px;
+        border-radius: 5px;
+    }
+
+    #filterDropdown {
+        display: none;
+        position: absolute;
+        right: 160px;
+        top: 70px;
+        background-color: #1a1424;
+        border: 2px solid #5a2ea6;
+        border-radius: 5px;
+        padding: 10px;
+        z-index: 999;
+        width: 220px;
+    }
+
+    #filterDropdown p {
+        margin: 8px 0;
+        cursor: pointer;
+        padding: 5px;
+    }
+
+    #filterDropdown p:hover {
+        background-color: #5a2ea6;
+    }
+
+    #resultsInfo {
+        margin-left: 20px;
+        font-size: 18px;
+        color: #caaaff;
+    }
+
+    #modal {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #1a1424;
+        padding: 20px;
+        border: 3px solid #5a2ea6;
+        border-radius: 10px;
+        z-index: 999;
+        width: 400px;
+    }
+
+</style>
+</head>
+<body>
+
+<header>
+    <input type="text" id="searchBar" placeholder="Search Discord ID..." onkeyup="searchCheaters()">
+    <button onclick="toggleFilter()">Filter</button>
+</header>
+
+<div id="filterDropdown"></div>
+<div id="resultsInfo"></div>
+
+<div id="cheaterList"></div>
+
+<!-- VIEW MORE INFO -->
+<div id="modal"></div>
+
+<script>
+let cheaters = [];
+
+/* -------------------- LOAD JSON DATABASE -------------------- */
+fetch("cheaters.json")
+    .then(res => res.json())
+    .then(data => {
+        cheaters = data;
+        renderCheaters();
+        loadFilterOptions();
+    })
+    .catch(err => {
+        console.error("Failed to load cheaters.json", err);
+    });
+
+/* -------------------- RENDER CHEATERS -------------------- */
+function renderCheaters(list = cheaters) {
+    let container = document.getElementById("cheaterList");
+    container.innerHTML = "";
+
+    list.forEach((c, i) => {
+        container.innerHTML += `
+            <div class="cheater-card">
+                <p><b>Discord ID:</b> ${c.discord}</p>
+                <p><b>Reason:</b> ${c.reason}</p>
+                <button onclick="viewMore(${i})">View More Info</button>
+            </div>
+        `;
+    });
+}
+
+/* -------------------- SEARCH -------------------- */
+function searchCheaters() {
+    let input = document.getElementById("searchBar").value.trim();
+    let resultsBox = document.getElementById("resultsInfo");
+
+    if (input !== "" && !/^\d+$/.test(input)) {
+        resultsBox.innerHTML = "You didn't enter a valid discord ID, retry.";
+        renderCheaters([]);
+        return;
+    }
+
+    let results = cheaters.filter(c => c.discord.includes(input));
+
+    if (input === "") {
+        resultsBox.innerHTML = "";
+        renderCheaters();
+        return;
+    }
+
+    if (results.length === 0) {
+        resultsBox.innerHTML = `The ID: ${input} is not found in our database.`;
+    } else {
+        resultsBox.innerHTML = `${results.length} results found`;
+    }
+
+    renderCheaters(results);
+}
+
+/* -------------------- FILTER -------------------- */
+function toggleFilter() {
+    let menu = document.getElementById("filterDropdown");
+    menu.style.display = menu.style.display === "block" ? "none" : "block";
+}
+
+function loadFilterOptions() {
+    let menu = document.getElementById("filterDropdown");
+
+    let servers = {};
+    cheaters.forEach(c => {
+        servers[c.server] = (servers[c.server] || 0) + 1;
+    });
+
+    menu.innerHTML = "<h3>Select Server</h3>";
+
+    for (let srv in servers) {
+        menu.innerHTML += `<p onclick="applyFilter('${srv}')">${srv} (${servers[srv]})</p>`;
+    }
+}
+
+function applyFilter(serverName) {
+    let filtered = cheaters.filter(c => c.server === serverName);
+    document.getElementById("resultsInfo").innerHTML =
+        `${filtered.length} results found on server: ${serverName}`;
+    renderCheaters(filtered);
+    document.getElementById("filterDropdown").style.display = "none";
+}
+
+/* -------------------- VIEW MORE INFO -------------------- */
+function viewMore(i) {
+    let c = cheaters[i];
+    let modal = document.getElementById("modal");
+
+    // Format date
+    let dateObj = new Date(c.date); // converts "2025-02-03" into a Date object
+    let options = { day: '2-digit', month: 'short', year: 'numeric' };
+    let formattedDate = dateObj.toLocaleDateString('en-US', options); // "03 Feb 2025"
+
+    let ev = "";
+    if (c.e1) ev += `<button onclick="window.open('${c.e1}')">Evidence 1</button><br><br>`;
+    if (c.e2) ev += `<button onclick="window.open('${c.e2}')">Evidence 2</button><br><br>`;
+    if (c.e3) ev += `<button onclick="window.open('${c.e3}')">Evidence 3</button><br><br>`;
+
+    modal.innerHTML = `
+        <h2>Cheater Info</h2>
+        <p><b>Discord ID:</b> ${c.discord}</p>
+        <p><b>Date:</b> ${formattedDate}</p>
+        <p><b>Server:</b> <a href="#" onclick="window.open('${c.slink}')">${c.server}</a></p>
+        <p><b>Reason:</b> ${c.reason}</p>
+        ${ev}
+        <button onclick="modal.style.display='none'">Close</button>
+    `;
+
+    modal.style.display = "block";
+}
+</script>
+
+</body>
+</html>
